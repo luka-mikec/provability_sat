@@ -7,6 +7,7 @@ import typetraits
 import sequtils
 import options
 import future
+import lists
 import threadpool
 
 # some additional methods for built-in sets
@@ -37,18 +38,23 @@ proc map*[T, S](s: set[T], f: proc (x: T): S {.closure.}): set[S] =
   for val in s:
     result.incl f(val)
 
+proc to_list*[T](s : seq[T]) : SinglyLinkedList[T] =
+  result = initSinglyLinkedList[T]()
+  for val in s:
+    result.prepend(val)
 
-const max_depth : int = 14
+const max_length : int = 16
 
 type
-  sf_value_t = uint32  # pamtimo tip, index lijeve form, index desne f
-  sf_index_t = uint8   # zapravo je 8, al da se ne dogode cudne stvari
+  uint4 = enum
+    byte0, byte1, byte2, byte3, byte4, byte5, byte6, byte7,
+    byte8, byte9, bytea, byteb, bytec, byted, bytee, bytef
+  sf_value_t  = uint32  # pamtimo tip, index lijeve form, index desne f
+  sf_index_t  = uint4   # uint4 for length up to 16, uint8 for 256, uint16 for 65k
+  sf_index_nt = uint8   # when a proper number is needed
   prop_impl_type = char
   set_of_fs = set[sf_index_t]   # ovo moraju biti bas indexi, ne slova, inace se moze dogodit mesanje (jer modalni u istom skupu)
   interpretation_impl_type = set_of_fs
-  subformula_t = object
-    itr : sf_index_t
-    val : sf_value_t
   subformula_item_t = enum
     content,
     left,
@@ -65,46 +71,51 @@ type
     diamond
     rhd
     prop
-  fat_formula = object
-    case tip: formula_type
-    of undefined, falsum, verum:
-      nil
-    of prop:
-      letter: prop_impl_type
-    of box, diamond, neg:
-      arg: ref fat_formula
-    of conditional, rhd, land, lor:
-      left, right: ref fat_formula
-    cache_str : string
   formula = object # for formula UP TO 128 subformulas
-    ast      : array[11, sf_value_t]
-    boxed_sf : set[sf_index_t]
-    prop_sf  : set[sf_index_t]
-    root : sf_index_t
+    ast      : array[max_length, sf_value_t]
+    boxed_sf : set_of_fs
+    prop_sf  : set_of_fs
+    root : sf_index_nt
 
 
-proc sf_get(sf : sf_value_t, j : subformula_item_t) : sf_index_t =
-  case j
-    of content: sf and 0x000000ff
-    of left:    (sf shr 8)  and 0x000000ff
-    of right:   (sf shr 16) and 0x000000ff
+when sf_value_t is uint32:
+  proc sf_get(sf : sf_value_t, j : subformula_item_t) : sf_index_nt =
+    result = case j
+      of content: sf and 0x000000ff
+      of left:    (sf shr 8)  and 0x000000ff
+      of right:   (sf shr 16) and 0x000000ff
+when sf_value_t is uint16:
+  proc sf_get(sf : sf_value_t, j : subformula_item_t) : sf_index_nt =
+    result = case j
+      of content: sf and 0x000f
+      of left:    (sf shr 4)  and 0x000f
+      of right:   (sf shr 8) and 0x000f
 
 proc sf_type(sf : sf_value_t) : formula_type =
  let fcontent = sf_get(sf, content)
  if fcontent <= ord high formula_type: formula_type(fcontent) else: prop
 
-proc sf_set(sf: var sf_value_t, j : subformula_item_t,  value: sf_index_t) : void = # TODO : sf_index_t =
-  case j
-    of content: sf = (sf and (uint32)0xffffff00) or value
-    of left:    sf = (sf and (uint32)0xffff00ff) or (sf_value_t(value) shl 8)
-    of right:   sf = (sf and (uint32)0xff00ffff) or (sf_value_t(value) shl 16)
+when sf_value_t is uint32:
+  proc sf_set(sf: var sf_value_t, j : subformula_item_t,  value: sf_index_nt) : void = # TODO : sf_index_nt =
+    case j
+      of content: sf = (sf and (uint32)0xffffff00) or value
+      of left:    sf = (sf and (uint32)0xffff00ff) or (sf_value_t(value) shl 8)
+      of right:   sf = (sf and (uint32)0xff00ffff) or (sf_value_t(value) shl 16)
+when sf_value_t is uint16:
+  proc sf_set(sf: var sf_value_t, j : subformula_item_t,  value: sf_index_nt) : void = # TODO : sf_index_nt =
+    case j
+      of content: sf = (sf and (uint16)0xfff0) or value
+      of left:    sf = (sf and (uint16)0xff0f) or (sf_value_t(value) shl 4)
+      of right:   sf = (sf and (uint16)0xf0ff) or (sf_value_t(value) shl 8)
 
 
-method `[]`(f : formula, i : sf_index_t, j : subformula_item_t) : sf_index_t = sf_get(f.ast[i], j)
-method `[]=`(f: var formula, i: sf_index_t, j : subformula_item_t,  value: sf_index_t) : void = sf_set(f.ast[i], j, value)
+method `[]`(f : formula, i : sf_index_nt, j : subformula_item_t) : sf_index_nt = sf_get(f.ast[i], j)
+method `[]=`(f: var formula, i: sf_index_nt, j : subformula_item_t,  value: sf_index_nt) : void = sf_set(f.ast[i], j, value)
+method `[]`(f : formula, i : sf_index_t, j : subformula_item_t) : sf_index_nt = sf_get(f.ast[sf_index_nt i], j)
+method `[]=`(f: var formula, i: sf_index_t, j : subformula_item_t,  value: sf_index_nt) : void = sf_set(f.ast[sf_index_nt i], j, value)
 
 
-proc make_subformula(vcontent : sf_index_t, vleft : sf_index_t = 0, vright : sf_index_t = 0) : sf_value_t =
+proc make_subformula(vcontent : sf_index_nt, vleft : sf_index_nt = 0, vright : sf_index_nt = 0) : sf_value_t =
   sf_set(result, content, vcontent)
   sf_set(result, left, vleft)
   sf_set(result, right, vright)
@@ -119,7 +130,7 @@ method update_gamma(f : var formula) : void =
     else:
       discard
 
-proc from_prefix(a : string, index : var int, subformulas : var Table[sf_value_t, sf_index_t]) : sf_index_t =
+proc from_prefix(a : string, index : var int, subformulas : var Table[sf_value_t, sf_index_nt]) : sf_index_nt =
   let s = a[index]
   inc index
   let value : sf_value_t = case s
@@ -127,47 +138,47 @@ proc from_prefix(a : string, index : var int, subformulas : var Table[sf_value_t
       sf_value_t(ord s)
     of 'B':
       let arg   = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_t(box), arg)
+      make_subformula(sf_index_nt(box), arg)
     of 'D':
       let arg   = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_t(diamond), arg)
+      make_subformula(sf_index_nt(diamond), arg)
     of '#':
-      make_subformula sf_index_t(falsum)
+      make_subformula sf_index_nt(falsum)
     of 'T':
-      make_subformula sf_index_t(verum)
+      make_subformula sf_index_nt(verum)
     of '>':
       let vleft  = from_prefix(a, index, subformulas)
       let vright = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_t(rhd), vleft, vright)
+      make_subformula(sf_index_nt(rhd), vleft, vright)
     of '~':
       let vleft  = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_t(neg), vleft)
+      make_subformula(sf_index_nt(neg), vleft)
     of '&':
       let vleft  = from_prefix(a, index, subformulas)
       let vright = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_t(land), vleft, vright)
+      make_subformula(sf_index_nt(land), vleft, vright)
     of '|':
       let vleft  = from_prefix(a, index, subformulas)
       let vright = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_t(lor), vleft, vright)
+      make_subformula(sf_index_nt(lor), vleft, vright)
     of '-':
       let vleft  = from_prefix(a, index, subformulas)
       let vright = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_t(conditional), vleft, vright)
+      make_subformula(sf_index_nt(conditional), vleft, vright)
     else:
       0
   result = if value in subformulas:
       subformulas[value]
     else:
     (block:
-      subformulas[value] = sf_index_t(subformulas.len)
-      sf_index_t(subformulas.len - 1)
+      subformulas[value] = sf_index_nt(subformulas.len)
+      sf_index_nt(subformulas.len - 1)
     )
 
 proc from_prefix(a : string) : formula =
   let a = replace(replace(a, "D", "~B~"), " ", "")
 
-  var sf : auto = init_table[sf_value_t, sf_index_t]()
+  var sf : auto = init_table[sf_value_t, sf_index_nt]()
   var i  : int
   result.root = from_prefix(a, i, sf)
   for key, val in sf:
@@ -218,41 +229,89 @@ method `$`(f : formula) : string =
   return sf_to_str(f, f.ast[f.root])
 
 
-method gl_eval_prop(f : formula, i : interpretation_impl_type, sf_ind : sf_index_t) : bool =
+method gl_eval_prop(f : formula, i : interpretation_impl_type, sf_ind : sf_index_nt) : bool =
   let sf = f.ast[sf_ind]
   case sf_type sf
     of falsum:      return false
     of verum:       return true
-    of prop:        return sf_ind in i # recimo da se mapira ovako
+    of prop:        return (sf_index_t sf_ind) in i # recimo da se mapira ovako
     of conditional: return not f.gl_eval_prop(i, sf_get(sf, left)) or f.gl_eval_prop(i, sf_get(sf, right))
     of neg:         return not f.gl_eval_prop(i, sf_get(sf, left))
     of land:        return f.gl_eval_prop(i, sf_get(sf, left)) and f.gl_eval_prop(i, sf_get(sf, right))
     of lor:         return f.gl_eval_prop(i, sf_get(sf, left)) or f.gl_eval_prop(i, sf_get(sf, right))
-    of box:         return sf_ind in i
+    of box:         return (sf_index_t sf_ind) in i
     else:           raise (ref Exception)(msg: "not GL formula")
-
 method gl_eval_prop(f : formula, i : interpretation_impl_type) : bool = f.gl_eval_prop(i, f.root)
+
+method gl_eval_prop_set(f : formula, i : interpretation_impl_type, sf_ind : sf_index_nt, true_sfs : var set_of_fs, false_sfs : var set_of_fs) : bool =
+  if (sf_index_t sf_ind) in true_sfs:  return true
+  if (sf_index_t sf_ind) in false_sfs: return false
+  let sf = f.ast[sf_ind]
+  case sf_type sf
+    of falsum:      result = false
+    of verum:       result = true
+    of prop:        result = (sf_index_t sf_ind) in i
+    of conditional:
+      let lval = f.gl_eval_prop_set(i, sf_get(sf, left), true_sfs, false_sfs)
+      let rval = f.gl_eval_prop_set(i, sf_get(sf, right), true_sfs, false_sfs)
+      result = not lval or rval # avoiding short-circuiting or
+    of neg:
+      let lval = f.gl_eval_prop_set(i, sf_get(sf, left), true_sfs, false_sfs)
+      result = not lval
+    of land:
+      let lval = f.gl_eval_prop_set(i, sf_get(sf, left), true_sfs, false_sfs)
+      let rval = f.gl_eval_prop_set(i, sf_get(sf, right), true_sfs, false_sfs)
+      result = lval and rval
+    of lor:
+      let lval = f.gl_eval_prop_set(i, sf_get(sf, left), true_sfs, false_sfs)
+      let rval = f.gl_eval_prop_set(i, sf_get(sf, right), true_sfs, false_sfs)
+      result = lval or rval
+    of box:         (discard f.gl_eval_prop_set(i, sf_get(sf, left), true_sfs, false_sfs);  result = (sf_index_t sf_ind) in i)
+    else:           raise (ref Exception)(msg: $f & " is not GL formula")
+  if result:
+    true_sfs.incl (sf_index_t sf_ind)
+  else:
+    false_sfs.incl (sf_index_t sf_ind)
+method gl_eval_prop_set(f : formula, i : interpretation_impl_type) : set_of_fs =
+  # result = {}
+  var false_sfs : set_of_fs # = {}
+  discard f.gl_eval_prop_set(i, f.root, result, false_sfs)
+  #[
+  assert(false_sfs * result == {})
+  for j, val in f.ast:
+    if val != 0:
+      if not( (sf_index_t j) in result or (sf_index_t j) in false_sfs ):
+        echo f
+        echo i
+        echo j
+        echo result
+        echo false_sfs
+        quit()
+  ]#
 
 
 proc sattreegl(f : formula,
-               goal : Option[sf_index_t],
-               neg_goal : Option[sf_index_t],
+               goal : Option[sf_index_nt],
+               neg_goal : Option[sf_index_nt],
                persistent_bans : set_of_fs,
                persistent_truths : set_of_fs,
                lev : int = 0) : bool =
   let gamma0 = f.boxed_sf + f.prop_sf
   #echo repeat("  ", lev), gamma0, " @ ", (if goal.is_some: goal.get else: neg_goal.get), persistent_truths, persistent_bans
-  if persistent_bans * persistent_truths != {}:
+  if persistent_bans * persistent_truths != {} or
+    (goal.is_some and (sf_index_t goal.get) in persistent_bans) or
+    (neg_goal.is_some and (sf_index_t neg_goal.get) in persistent_truths) :
     #echo repeat("  ", lev), "FAILS", persistent_truths, persistent_bans
     return false
   let vargamma0 = gamma0 - persistent_truths - persistent_bans
   for varK in vargamma0.subsets:
     let K = persistent_truths + varK
+    let truths = f.gl_eval_prop_set(K)
     #echo repeat("  ", lev), K, varK, " out of ", vargamma0
-    let goal_satisfied = goal.is_none or f.gl_eval_prop(K, goal.get)
-    let neg_goal_avoided = neg_goal.is_none or not f.gl_eval_prop(K, neg_goal.get)
-    let pers_truths_satisfied = persistent_truths.all_it f.gl_eval_prop(K, it) # do (frm : sf_index_t) -> bool:
-    let pers_bans_avoided     = persistent_bans.all_it (not f.gl_eval_prop(K, it))
+    let goal_satisfied = goal.is_none or (sf_index_t goal.get) in truths
+    let neg_goal_avoided = neg_goal.is_none or (sf_index_t neg_goal.get) notin truths
+    let pers_truths_satisfied = persistent_truths <= truths
+    let pers_bans_avoided     = persistent_bans * truths == {}
     #echo repeat("  ", lev), goal_satisfied, neg_goal_avoided, pers_truths_satisfied, pers_bans_avoided
     if not( goal_satisfied and neg_goal_avoided and pers_truths_satisfied and pers_bans_avoided ):
        continue
@@ -264,14 +323,14 @@ proc sattreegl(f : formula,
       let C = f[boxC, left]
       return sattreegl(
         f = f,
-        goal = none sf_index_t,
+        goal = none sf_index_nt,
         neg_goal = some C,
-        persistent_bans   = persistent_bans + (if goal.is_some(): {goal.get} else: {}),
+        persistent_bans   = persistent_bans + (if goal.is_some(): {sf_index_t goal.get} else: {}),
         persistent_truths = persistent_truths +
           f.boxed_sf * K +
-          ((f.boxed_sf * K).map boxD => f[boxD, left]) +
+          ((f.boxed_sf * K).map boxD => sf_index_t(f[ (sf_index_nt boxD), left])) +
           {boxC} +
-          (if neg_goal.is_some(): {neg_goal.get} else: {}),
+          (if neg_goal.is_some(): {sf_index_t neg_goal.get} else: {}),
         lev = lev + 1
       )
     if all_satisfied:
@@ -281,7 +340,7 @@ proc sattreegl(f : formula,
   false
 
 
-proc sattreegl(f : formula) : bool = sattreegl(f, some f.root, none sf_index_t, {}, {})
+proc sattreegl(f : formula) : bool = sattreegl(f, some f.root, none sf_index_nt, {}, {})
 
 # this checks whether the subsequence of the first occurences of letters starts with 'a', is sorted and without holes
 # eg superduper --aab, --aba, -----abacba, but not superduper b, -ac, ---abad
@@ -302,7 +361,7 @@ proc superduper(fs : string) : bool =
   return true
 
 
-iterator formulas(length : int, ops = {falsum, verum, conditional, box, diamond}, variables : int = -1) : formula =
+iterator prefix_formulas(length : int, ops = {falsum, verum, conditional, box, diamond}, variables : int = -1) : string =
   let op0 = {falsum, verum} * ops
   let op1 = {box, diamond, neg} * ops
   let op2 = {rhd, conditional, land, lor} * ops
@@ -314,9 +373,10 @@ iterator formulas(length : int, ops = {falsum, verum, conditional, box, diamond}
   let ar2_syms  = lc[($ ft_to_chr x) | (x <- op2), string]
 
   # we will build formulas recursively by complexity, saving the previous stages
-  var fcache    = @[ ar0_syms ]
+  var fcache    = new_seq[ SinglyLinkedList[string] ](length)
+  fcache[0] = to_list ar0_syms
   for stage in 2..length:
-    var stage_formulas = lc[ (op & f) | (op <- ar1_syms, f <- fcache[stage - 1 - 1]), string ]
+    fcache[stage - 1] = to_list lc[ (op & f) | (op <- ar1_syms, f <- fcache[stage - 1 - 1]), string ]
 
     for pstage1 in 1..stage-2:
       let pstage2 = stage - pstage1 - 1
@@ -325,16 +385,18 @@ iterator formulas(length : int, ops = {falsum, verum, conditional, box, diamond}
       for op in ar2_syms:
         for f1 in fcache[pstage1 - 1]:
           for f2 in fcache[pstage2 - 1]:
-            stage_formulas.add (op & f1 & f2)
+            fcache[stage - 1].prepend (op & f1 & f2)
             if pstage1 != pstage2:  # skip adding (b, a) if we already have (a, b)
-              stage_formulas.add (op & f2 & f1)
-    fcache.add stage_formulas
+              fcache[stage - 1].prepend (op & f2 & f1)
 
   for stage in fcache:
     for f in stage:
       if superduper f:
-        #echo f
-        yield from_prefix f
+        yield f
+
+iterator formulas(length : int, ops = {falsum, verum, conditional, box, diamond}, variables : int = -1) : formula =
+  for f in prefix_formulas(length, ops, variables):
+    yield from_prefix f
 
 
 # let fs = @[ "- B-Bpp Bp", "- BDT B#", "- B-pq -BpBq", "p", "Dp", "~- B-Bpp Bp", "~- BDT B#", "~- B-pq -BpBq", "& Bp B~p", "& DT & Bp B~p" ]
@@ -342,21 +404,36 @@ iterator formulas(length : int, ops = {falsum, verum, conditional, box, diamond}
 #echo sattreegl from_prefix "~BB#"
 #quit()
 
-let threads = 1
+let threads = 4
 
-proc search_job(me, max : int) : int =
+import os
+import parseutils
+var length = case param_count():
+  of 0: 10
+  else: parse_int(param_str(1))
+echo "generating formulas up to length ", length
+
+var fstrs = lc[ initSinglyLinkedList[string]()  |  (i <- 1..threads), SinglyLinkedList[string] ]
+
+var choose_goose = 0 # choose some protection from my selection!
+for v in prefix_formulas(length, ops = {falsum, conditional, box}, 3):
+  fstrs[choose_goose].prepend v
+  choose_goose = (choose_goose + 1) mod threads
+
+echo "generated."
+proc search_job(me, max, length : int) : int =
   {.gcsafe.}:
     var c = 0
     var t = 0
-    for f in formulas(11, ops = {falsum, conditional, box}):
+    for sf in fstrs[me]:
+      let f = from_prefix sf
       t += 1
-      if t mod max == me:
-        if sattreegl f:
-          #echo "DA"
-          c += 1
-        else:
-          #echo "NE"
-          discard 0
+      if sattreegl f:
+        #echo "DA"
+        c += 1
+      else:
+        #echo "NE"
+        discard 0
 
     echo c, "/", t
     c
@@ -365,7 +442,7 @@ proc search_job(me, max : int) : int =
 
 var responses = new_seq[FlowVar[int]](threads)
 for t in 0..threads-1:
-  responses[t] = spawn search_job(t, threads)
+  responses[t] = spawn search_job(t, threads, length)
 echo sum responses.map( x => ^x )
 quit()
 
