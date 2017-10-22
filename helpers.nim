@@ -1,9 +1,19 @@
 import lists
+import times
+
+proc stopwatch*( f : proc  ) : float =
+  result = cpu_time()
+  f()
+  return cpu_time() - result
 
 # some additional methods for the built-in types
-iterator subsets*[T](s : set[T]) : set[T] =
+iterator subsets*[T](s : set[T], prefer_smaller : bool = true) : set[T] =
   var subset : set[T]
-  for i in 0 .. 2^s.card - 1:
+  let m = 2^s.card - 1
+  for ii in 0 .. m:
+    let i = case prefer_smaller
+      of true:  ii
+      of false: m - ii
     subset = {}
     var tmpi : auto = i
     for val in s:
