@@ -2,19 +2,84 @@
 <head>
  <script src="main_js.js"> </script>
  <style> a, a:link, a:visited {text-decoration: none; color: rgb(151, 151, 151); }
-
     a:hover, a:active { text-decoration: underline; color: black; }
+    table {
+      border-collapse: collapse;
+    }
+    td {
+      padding: 5px; font-size: 14;
+    }
+    table td, table th {
+      border: 1px solid black;
+    }
+    table tr:first-child td {
+      border-top: 0;
+    }
+    table tr:last-child td {
+      border-bottom: 0;
+    }
+    table tr td:first-child,
+    table tr th:first-child {
+      border-left: 0;
+    }
+    table tr td:last-child,
+    table tr th:last-child {
+      border-right: 0;
+    }
+
  </style>
 </head>
 <body>
-  <div style="margin-left: auto; margin-right: auto; width: 400px; height:
-  70px; margin-top: 100px; padding: 20px; padding-right: 10px; text-align:center; background-color: ghostwhite; border: 1px solid lightgray; font-size: 12; ">
+  <div style="margin-left: auto; margin-right: auto; width: 400px; height: 400px; margin-top: 100px; padding: 20px; padding-right: 10px; text-align:center; background-color: ghostwhite; border: 1px solid lightgray; font-size: 14; ">
   <form>
     <input type="text" size="30" id="formula" style="font-size: 16;" value="[](p -> q) & ~(p > q)"></input>
     <br />
     <br />
     <input type="button" value="Check" onclick="check(document.getElementById('formula').value);" id="formula"></input>
   </form>
+  <br />
+  operators &amp; symbols 
+  <hr/>
+  <table style="margin-left:auto; margin-right:auto;">
+  <tr>
+    <td>interprets</td>
+    <td>|&gt; &gt;</td>
+  </tr>
+  <tr>
+    <td>box</td>
+    <td>[] B</td>
+  </tr>
+  <tr>
+    <td>diamond</td>
+    <td>&lt;&gt; D</td>
+  </tr>
+  <tr>
+    <td>neg</td>
+    <td>~</td>
+  </tr>
+  <tr>
+    <td>or</td>
+    <td>| || \/</td>
+  </tr>
+  <tr>
+    <td>and</td>
+    <td>&amp; &amp;&amp; /\</td>
+  </tr>
+  <tr>
+    <td>conditional</td>
+    <td>-&gt; -</td>
+  </tr>
+  <tr>
+    <td>false</td>
+    <td>_|_ #</td>
+  </tr>
+  <tr>
+    <td>true</td>
+    <td>T</td>
+  </tr>
+</table>
+  <br />
+  <br />
   <div style="width: 100%; text-align: right">
   <a href="https://github.com/luka-mikec/provability_sat">source code</a>
   </div>

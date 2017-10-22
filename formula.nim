@@ -73,8 +73,9 @@ when sf_value_t is int16:
 
 method `[]`*(f : formula, i : sf_index_nt, j : subformula_item_t) : sf_index_nt = sf_get(f.ast[i], j)
 method `[]=`*(f: var formula, i: sf_index_nt, j : subformula_item_t,  value: sf_index_nt) : void = sf_set(f.ast[i], j, value)
-method `[]`*(f : formula, i : sf_index_t, j : subformula_item_t) : sf_index_t = sf_index_t sf_get(f.ast[sf_index_nt i], j)
-method `[]=`*(f: var formula, i: sf_index_t, j : subformula_item_t,  value: sf_index_nt) : void = sf_set(f.ast[sf_index_nt i], j, value)
+when not( sf_index_t is sf_index_nt ):
+  method `[]`*(f : formula, i : sf_index_t, j : subformula_item_t) : sf_index_t = sf_index_t sf_get(f.ast[sf_index_nt i], j)
+  method `[]=`*(f: var formula, i: sf_index_t, j : subformula_item_t,  value: sf_index_nt) : void = sf_set(f.ast[sf_index_nt i], j, value)
 
 proc make_subformula*(vcontent : sf_index_nt, vleft : sf_index_nt = 0, vright : sf_index_nt = 0) : sf_value_t =
   sf_set(result, content, vcontent)
@@ -97,8 +98,6 @@ proc from_prefix*(a : string, index : var int, subformulas : var Table[sf_value_
   let s = a[index]
   inc index
   let value : sf_value_t = case s
-    of 'a'..'z':
-      sf_value_t(ord s)
     of 'B':
       let arg   = from_prefix(a, index, subformulas)
       make_subformula(sf_index_nt(box), arg)
@@ -129,7 +128,7 @@ proc from_prefix*(a : string, index : var int, subformulas : var Table[sf_value_
       let vright = from_prefix(a, index, subformulas)
       make_subformula(sf_index_nt(conditional), vleft, vright)
     else:
-      0
+      sf_value_t(ord s)
   result = if value in subformulas:
       subformulas[value]
     else:
