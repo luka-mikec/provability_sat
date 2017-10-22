@@ -1,0 +1,23 @@
+<html>
+<head>
+ <script src="main_js.js"> </script>
+ <style> a, a:link, a:visited {text-decoration: none; color: rgb(151, 151, 151); }
+
+    a:hover, a:active { text-decoration: underline; color: black; }
+ </style>
+</head>
+<body>
+  <div style="margin-left: auto; margin-right: auto; width: 400px; height:
+  70px; margin-top: 100px; padding: 20px; padding-right: 10px; text-align:center; background-color: ghostwhite; border: 1px solid lightgray; font-size: 12; ">
+  <form>
+    <input type="text" size="30" id="formula" style="font-size: 16;" value="[](p -> q) & ~(p > q)"></input>
+    <br />
+    <br />
+    <input type="button" value="Check" onclick="check(document.getElementById('formula').value);" id="formula"></input>
+  </form>
+  <div style="width: 100%; text-align: right">
+  <a href="https://github.com/luka-mikec/provability_sat">source code</a>
+  </div>
+  </div>
+</body>
+</html>

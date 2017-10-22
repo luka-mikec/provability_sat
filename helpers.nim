@@ -2,9 +2,17 @@ import lists
 import times
 
 proc stopwatch*( f : proc  ) : float =
-  result = cpu_time()
+  when declared cpu_time:
+    result = cpu_time()
+  else:
+    when declared epoch_time:
+      result = epoch_time()
   f()
-  return cpu_time() - result
+  when declared cpu_time:
+    result = cpu_time() - result
+  else:
+    when declared epoch_time:
+      result = epoch_time() - result
 
 # some additional methods for the built-in types
 iterator subsets*[T](s : set[T], prefer_smaller : bool = true) : set[T] =

@@ -6,12 +6,12 @@ import future
 const max_length : int = 16
 
 type
-  uint4 = enum
+  uint4* = enum
     byte0, byte1, byte2, byte3, byte4, byte5, byte6, byte7,
     byte8, byte9, bytea, byteb, bytec, byted, bytee, bytef
-  sf_value_t*  = uint32  # pamtimo tip, index lijeve form, index desne f
+  sf_value_t*  = int32  # pamtimo tip, index lijeve form, index desne f
   sf_index_t*  = uint4   # uint4 for length up to 16, uint8 for 256, uint16 for 65k
-  sf_index_nt* = uint8   # when a proper number is needed
+  sf_index_nt* = int8   # when a proper number is needed
   prop_impl_type* = char
   set_of_fs* = set[sf_index_t]   # ovo moraju biti bas indexi, ne slova, inace se moze dogodit mesanje (jer modalni u istom skupu)
   interpretation_impl_type* = set_of_fs
@@ -31,6 +31,7 @@ type
     diamond
     rhd
     prop
+    id
   formula* = object # for formula UP TO 128 subformulas
     ast*      : array[max_length, sf_value_t]
     boxed_sf* : set_of_fs
@@ -39,13 +40,13 @@ type
     root*     : sf_index_nt
 
 
-when sf_value_t is uint32:
+when sf_value_t is int32:
   proc sf_get*(sf : sf_value_t, j : subformula_item_t) : sf_index_nt =
     result = case j
-      of content: sf and 0x000000ff
-      of left:    (sf shr 8)  and 0x000000ff
-      of right:   (sf shr 16) and 0x000000ff
-when sf_value_t is uint16:
+      of content: sf_index_nt(sf and 0x000000ff)
+      of left:    sf_index_nt((sf shr 8)  and 0x000000ff)
+      of right:   sf_index_nt((sf shr 16) and 0x000000ff)
+when sf_value_t is int16:
   proc sf_get*(sf : sf_value_t, j : subformula_item_t) : sf_index_nt =
     result = case j
       of content: sf and 0x000f
@@ -56,18 +57,18 @@ proc sf_type*(sf : sf_value_t) : formula_type =
  let fcontent = sf_get(sf, content)
  if fcontent <= ord high formula_type: formula_type(fcontent) else: prop
 
-when sf_value_t is uint32:
+when sf_value_t is int32:
   proc sf_set*(sf: var sf_value_t, j : subformula_item_t,  value: sf_index_nt) : void = # TODO : sf_index_nt =
     case j
-      of content: sf = (sf and (uint32)0xffffff00) or value
-      of left:    sf = (sf and (uint32)0xffff00ff) or (sf_value_t(value) shl 8)
-      of right:   sf = (sf and (uint32)0xff00ffff) or (sf_value_t(value) shl 16)
-when sf_value_t is uint16:
+      of content: sf = (sf and (sf_value_t)0xffffff00'i32) or sf_value_t(value)
+      of left:    sf = (sf and (sf_value_t)0xffff00ff'i32) or (sf_value_t(value) shl 8)
+      of right:   sf = (sf and (sf_value_t)0xff00ffff'i32) or (sf_value_t(value) shl 16)
+when sf_value_t is int16:
   proc sf_set*(sf: var sf_value_t, j : subformula_item_t,  value: sf_index_nt) : void = # TODO : sf_index_nt =
     case j
-      of content: sf = (sf and (uint16)0xfff0) or value
-      of left:    sf = (sf and (uint16)0xff0f) or (sf_value_t(value) shl 4)
-      of right:   sf = (sf and (uint16)0xf0ff) or (sf_value_t(value) shl 8)
+      of content: sf = (sf and (sf_value_t)0xfff0'i16) or value
+      of left:    sf = (sf and (sf_value_t)0xff0f'i16) or (sf_value_t(value) shl 4)
+      of right:   sf = (sf and (sf_value_t)0xf0ff'i16) or (sf_value_t(value) shl 8)
 
 
 method `[]`*(f : formula, i : sf_index_nt, j : subformula_item_t) : sf_index_nt = sf_get(f.ast[i], j)
@@ -147,6 +148,7 @@ proc from_prefix*(a : string) : formula =
     result.ast[val] = key
   result.update_gamma()
 
+
 proc `$`*(ft : formula_type) : string =
   case ft
     of falsum:      "#"
@@ -175,6 +177,21 @@ proc ft_to_chr*(ft : formula_type) : char =
     of prop:        '?'
     else:           '?'
 
+proc chr_to_ft*(chr : char) : formula_type =
+  case chr
+    of '#': falsum
+    of 'T': verum
+    of '>': rhd
+    of '-': conditional
+    of '&': land
+    of '|': lor
+    of 'B': box
+    of 'D': diamond
+    of '~': neg
+    of '(': id
+    else  : undefined
+
+
 proc sf_to_str*(f : formula, sf : sf_value_t) : string =
   let fcontent : auto = sf_get(sf, content)
   let ft : auto = sf_type sf
@@ -189,6 +206,111 @@ proc sf_to_str*(f : formula, sf : sf_value_t) : string =
 
 method `$`*(f : formula) : string =
   return sf_to_str(f, f.ast[f.root])
+
+# this is just for infix -> prefix conversion
+type exprnode = object
+  ftype : formula_type
+  data  : char
+  lexpr : ref exprnode
+  rexpr : ref exprnode
+
+proc toks(str : string, i : int) : tuple[curr: char, peek: char] =
+  let c = str[i + 0]
+  let p = case (len str) - i
+    of 1: '\0'
+    else: str[i + 1]
+  (c, p)
+
+proc infixp(str : string, i : var int, preferunary : bool = false) : ref exprnode =
+  new(result)
+
+  var c, p : char
+  (c, p) = toks(str, i)
+  var am_unary = preferunary
+
+  var ft = chr_to_ft c
+  result.ftype = ft
+
+  case ft
+    of id:
+      inc i
+      result.lexpr = infixp(str, i, false)
+      inc i
+      (c, p) = toks(str, i)
+      assert(c == ')')
+    of box, diamond, neg:
+      inc i
+      result.lexpr = infixp(str, i, true)
+    of verum, falsum:
+      result.ftype = ft
+    else:
+      result.ftype = prop
+      result.data  = c
+  # do we already know this expr is unary?
+  if am_unary:
+    return result
+
+  # expr is allowed to be binary, is it?
+  (c, p) = toks(str, i)
+  let tn = chr_to_ft p
+  if tn notin {rhd, conditional, land, lor}:
+    return result
+
+  # expr is binary
+  let lexpr = result
+  new(result)
+  result.lexpr = lexpr
+
+  inc i
+  (c, p) = toks(str, i)
+  ft = chr_to_ft c
+  result.ftype = ft
+
+  inc i
+  (c, p) = toks(str, i)
+  ft = chr_to_ft c
+
+  new(result.rexpr)
+  result.rexpr.ftype = ft
+  case ft
+    of id:
+      inc i
+      result.rexpr.lexpr = infixp(str, i, false)
+      inc i
+      (c, p) = toks(str, i)
+      assert(c == ')')
+    of box, diamond, neg:
+      inc i
+      result.rexpr.lexpr = infixp(str, i, true)
+    of verum, falsum:
+      result.rexpr.ftype = ft
+    else:
+      result.rexpr.ftype = prop
+      result.rexpr.data  = c
+  result
+
+proc infixp(str : string) : ref exprnode =
+  var i = 0
+  return infixp(replace(str, " ", ""), i)
+
+proc exprnode_to_prefix(e : ref exprnode) : string =
+  case e.ftype
+    of prop:
+      $e.data
+    of verum, falsum:
+      $ft_to_chr(e.ftype)
+    of box, diamond, neg:
+      ft_to_chr(e.ftype) & exprnode_to_prefix(e.lexpr)
+    of rhd, conditional, land, lor:
+      ft_to_chr(e.ftype) & exprnode_to_prefix(e.lexpr) & exprnode_to_prefix(e.rexpr)
+    of id:
+      exprnode_to_prefix(e.lexpr)
+    else:
+      "???"
+
+proc from_infix*(str : string) : formula =
+  from_prefix exprnode_to_prefix infixp multi_replace(str, ("->", "-"), ("&&", "&"), ("\\/", "|"), ("||", "|"), ("/\\", "&"),
+                                 ("_|_", "#"), ("[]", "B"), ("<>", "D"), ("¬", "~"), ("|>", ">"))
 
 
 method extend_forcing*(f : formula, i : interpretation_impl_type, sf_ind : sf_index_nt, true_sfs : var set_of_fs, false_sfs : var set_of_fs) : bool =

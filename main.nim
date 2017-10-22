@@ -23,8 +23,6 @@ import generator
 import logic_il
 
 
-
-
 #[
 let fs = [  "- B-Bpp Bp", "- BDT B#", "- B-pq -BpBq", "p", "Dp", "~- B-Bpp Bp", "~- BDT B#", "~- B-pq -BpBq", "& Bp B~p", "& DT & Bp B~p"
             ">pp", "~>pp", ">pq", "~>qp", "- B-pq >pq", "~- B-pq >pq", "~> B-pq >pq", "- >pq - >qr >pr", "~- >pq - >qr >pr",
@@ -50,7 +48,7 @@ echo "generating formulas up to length ", length
 
 var fstrs = lc[ initSinglyLinkedList[string]()  |  (i <- 1..threads), SinglyLinkedList[string] ]
 
-var choose_goose = 0 # choose some protection from my selection!
+var choose_goose = 0
 for v in prefix_formulas(length, ops = {falsum, conditional, rhd, box}):
   fstrs[choose_goose].prepend v
   choose_goose = (choose_goose + 1) mod threads
