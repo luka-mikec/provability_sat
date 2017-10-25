@@ -24,9 +24,10 @@ import logic_il
 
 
 #[
-let fs = [  "- B-Bpp Bp", "- BDT B#", "- B-pq -BpBq", "p", "Dp", "~- B-Bpp Bp", "~- BDT B#", "~- B-pq -BpBq", "& Bp B~p", "& DT & Bp B~p"
+let fs = [  "- B-Bpp Bp", "- BDT B#", "- B-pq -BpBq", "p", "Dp", "~- B-Bpp Bp", "~- BDT B#", "~- B-pq -BpBq", "& Bp B~p", "& DT & Bp B~p",
             ">pp", "~>pp", ">pq", "~>qp", "- B-pq >pq", "~- B-pq >pq", "~> B-pq >pq", "- >pq - >qr >pr", "~- >pq - >qr >pr",
-            "- >ps - >qs >|pq s", "~- >ps - >qs >|pq s", "- >pq -DpDq","&& >Tq DTB~q", "-B-TT >TT", "~> B>pq >pq"]
+            "- >ps - >qs >|pq s", "~- >ps - >qs >|pq s", "- >pq -DpDq","&& >Tq DTB~q", "-B-TT >TT", "~> B>pq >pq",
+            ]
 
 for s in fs:
   let f = from_prefix s
@@ -36,7 +37,12 @@ for s in fs:
 quit()
 ]#
 
+let frm = from_infix "(p > q) -> (~(p > ~c) > (q & Bc))" #
+#let frm = from_infix "~(~(T > p) > #)" # (p > q) &
+echo repr frm
+echo sattreeil frm
 
+quit()
 
 let threads = 4
 

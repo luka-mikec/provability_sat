@@ -3,14 +3,14 @@ import tables
 import strutils
 import future
 
-const max_length : int = 16
+const max_length : int = 256
 
 type
   uint4* = enum
     byte0, byte1, byte2, byte3, byte4, byte5, byte6, byte7,
     byte8, byte9, bytea, byteb, bytec, byted, bytee, bytef
   sf_value_t*  = int32  # pamtimo tip, index lijeve form, index desne f
-  sf_index_t*  = uint4   # uint4 for length up to 16, uint8 for 256, uint16 for 65k
+  sf_index_t*  = int8   # uint4 for length up to 16, uint8 for 256, uint16 for 65k
   sf_index_nt* = int8   # when a proper number is needed
   prop_impl_type* = char
   set_of_fs* = set[sf_index_t]   # ovo moraju biti bas indexi, ne slova, inace se moze dogodit mesanje (jer modalni u istom skupu)

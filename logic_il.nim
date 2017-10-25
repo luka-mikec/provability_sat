@@ -5,6 +5,7 @@ import math
 import future
 import tables
 import formula
+import strutils
 
 proc sattreeil*(f : formula,
                goal : Option[sf_index_t],
@@ -22,6 +23,10 @@ proc sattreeil*(f : formula,
   let vargamma0 = gamma0 - persistent_truths - persistent_bans
   for varK in vargamma0.subsets(prefer_smaller = false):
     let K = persistent_truths + varK
+    ##
+    #if lev == 0 and (byte2 notin K or byte5 in K or byte9 in K or byte7 in K):
+    #  continue
+
     let truths = f.extend_forcing(K)
     #echo repeat("  ", lev), K, varK, " out of ", vargamma0
     let goal_satisfied = goal.is_none or goal.get in truths
@@ -34,6 +39,7 @@ proc sattreeil*(f : formula,
     let N_boxed = f.boxed_sf - K
     let N_rhd   = f.rhd_sf - K
     let I       = f.rhd_sf * K
+    #echo repeat("  ", lev), "I=", I, " Nrhd=", N_rhd, " Nb=", N_boxed
 
     if N_boxed == {} and N_rhd == {}:
       #echo repeat("  ", lev), "SUCC"
@@ -47,7 +53,7 @@ proc sattreeil*(f : formula,
     var found_ok_I_for_boxes = false
     for I_witnesses in I.subsets(prefer_smaller = true):
       let I_bans = I - I_witnesses
-      let pbans = base_pbans + I_bans
+      let pbans = base_pbans + (I_bans.map CrhdD => f[CrhdD, left])
       let ptruths = base_pthruths
       # TODO: mijenjaj bit oko CrhdD u zabranama
       let ok_negs = N_boxed.all do (boxC : sf_index_t) -> bool:
@@ -73,11 +79,13 @@ proc sattreeil*(f : formula,
         N_rhd_by_rhs[D].incl CrhdD
 
     let all_satisfied_rhd = Ds.all do (D : sf_index_t) -> bool:
+      #echo repeat("  ", lev), "za ", D
       let base_D_pbans = base_pbans + {D}
       for I_witnesses in I.subsets(prefer_smaller = false):
         let I_bans = I - I_witnesses
-        let pbans = base_D_pbans + I_bans
+        let pbans = base_D_pbans + (I_bans.map CrhdD => f[CrhdD, left])
         let ptruths = base_pthruths
+        #echo repeat("  ", lev), I_witnesses, " pb ", base_D_pbans, I_bans, " pt ", ptruths
         # TODO: mijenjaj bit oko CrhdD u zabranama
         let ok_negs = N_rhd_by_rhs[D].all do (CrhdD : sf_index_t) -> bool:
           let C = f[CrhdD, left]
