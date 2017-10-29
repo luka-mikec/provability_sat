@@ -32,10 +32,16 @@
 <body>
   <div style="margin-left: auto; margin-right: auto; width: 400px; height: 400px; margin-top: 100px; padding: 20px; padding-right: 10px; text-align:center; background-color: ghostwhite; border: 1px solid lightgray; font-size: 14; ">
   <form>
-    <input type="text" size="30" id="formula" style="font-size: 16;" value="[](p -> q) & ~(p > q)"></input>
+    <input type="text" size="22" id="formula" style="font-size: 16;" value="[](p -> q) & ~(p > q)"></input>
+    &nbsp;
+    <select id="logic" style="font-size: 14;">
+      <option value="il">IL (or GL)</option>  
+      <option value="ilw">ILW</option>
+      <option value="ilp">ILP</option>
+    </select>
     <br />
     <br />
-    <input type="button" value="Check" onclick="check(document.getElementById('formula').value);" id="formula"></input>
+    <input type="button" value="Check" onclick="check(document.getElementById('formula').value, document.getElementById('logic').value);" id="formula"></input>
   </form>
   <br />
   operators &amp; symbols 
@@ -55,15 +61,19 @@
   </tr>
   <tr>
     <td>neg</td>
-    <td>~</td>
+    <td>~ &not;</td>
   </tr>
   <tr>
     <td>or</td>
-    <td>| || \/</td>
+    <td>| || \/ +</td>
   </tr>
   <tr>
     <td>and</td>
-    <td>&amp; &amp;&amp; /\</td>
+    <td>&amp; &amp;&amp; /\ *</td>
+  </tr>
+  <tr>
+    <td>and not</td>
+    <td>%</td>
   </tr>
   <tr>
     <td>conditional</td>
