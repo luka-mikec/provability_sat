@@ -26,6 +26,7 @@ type
     conditional
     land
     lor
+    notcond
     neg
     box
     diamond
@@ -119,6 +120,10 @@ proc from_prefix*(a : string, index : var int, subformulas : var Table[sf_value_
       let vleft  = from_prefix(a, index, subformulas)
       let vright = from_prefix(a, index, subformulas)
       make_subformula(sf_index_nt(land), vleft, vright)
+    of '%':
+      let vleft  = from_prefix(a, index, subformulas)
+      let vright = from_prefix(a, index, subformulas)
+      make_subformula(sf_index_nt(notcond), vleft, vright)
     of '|':
       let vleft  = from_prefix(a, index, subformulas)
       let vright = from_prefix(a, index, subformulas)
@@ -153,6 +158,7 @@ proc `$`*(ft : formula_type) : string =
     of falsum:      "#"
     of verum:       "T"
     of rhd:         "|>"
+    of notcond:     "¬->"
     of conditional: "->"
     of land:        "&"
     of lor:         "|"
@@ -170,6 +176,7 @@ proc ft_to_chr*(ft : formula_type) : char =
     of conditional: '-'
     of land:        '&'
     of lor:         '|'
+    of notcond:     '%'
     of box:         'B'
     of diamond:     'D'
     of neg:         '~'
@@ -184,6 +191,7 @@ proc chr_to_ft*(chr : char) : formula_type =
     of '-': conditional
     of '&': land
     of '|': lor
+    of '%': notcond
     of 'B': box
     of 'D': diamond
     of '~': neg
@@ -198,7 +206,7 @@ proc sf_to_str*(f : formula, sf : sf_value_t) : string =
   let vr : auto = sf_get(sf, right)
   result = case ft
     of falsum, verum:               $ft
-    of rhd, conditional, land, lor: "(" & sf_to_str(f, f.ast[vl]) & ' ' & $ft & ' ' & sf_to_str(f, f.ast[vr]) & ")"
+    of rhd, conditional, land, lor, notcond: "(" & sf_to_str(f, f.ast[vl]) & ' ' & $ft & ' ' & sf_to_str(f, f.ast[vr]) & ")"
     of neg, box, diamond:           $ft & sf_to_str(f, f.ast[vl])
     of prop:                        $char(fcontent)
     else:                           $ft
@@ -252,7 +260,7 @@ proc infixp(str : string, i : var int, preferunary : bool = false) : ref exprnod
   # expr is allowed to be binary, is it?
   (c, p) = toks(str, i)
   let tn = chr_to_ft p
-  if tn notin {rhd, conditional, land, lor}:
+  if tn notin {rhd, conditional, land, lor, notcond}:
     return result
 
   # expr is binary
@@ -300,7 +308,7 @@ proc exprnode_to_prefix(e : ref exprnode) : string =
       $ft_to_chr(e.ftype)
     of box, diamond, neg:
       ft_to_chr(e.ftype) & exprnode_to_prefix(e.lexpr)
-    of rhd, conditional, land, lor:
+    of rhd, conditional, land, lor, notcond:
       ft_to_chr(e.ftype) & exprnode_to_prefix(e.lexpr) & exprnode_to_prefix(e.rexpr)
     of id:
       exprnode_to_prefix(e.lexpr)
@@ -309,7 +317,7 @@ proc exprnode_to_prefix(e : ref exprnode) : string =
 
 proc from_infix*(str : string) : formula =
   from_prefix exprnode_to_prefix infixp multi_replace(str, ("->", "-"), ("&&", "&"), ("\\/", "|"), ("||", "|"), ("/\\", "&"),
-                                 ("_|_", "#"), ("[]", "B"), ("<>", "D"), ("¬", "~"), ("|>", ">"))
+                                 ("_|_", "#"), ("[]", "B"), ("<>", "D"), ("¬", "~"), ("|>", ">"), ("*", "&"), ("+", "|"))
 
 
 method extend_forcing*(f : formula, i : interpretation_impl_type, sf_ind : sf_index_nt, true_sfs : var set_of_fs, false_sfs : var set_of_fs) : bool =
@@ -335,6 +343,10 @@ method extend_forcing*(f : formula, i : interpretation_impl_type, sf_ind : sf_in
       let lval = f.extend_forcing(i, sf_get(sf, left), true_sfs, false_sfs)
       let rval = f.extend_forcing(i, sf_get(sf, right), true_sfs, false_sfs)
       result = lval or rval
+    of notcond:
+      let lval = f.extend_forcing(i, sf_get(sf, left), true_sfs, false_sfs)
+      let rval = f.extend_forcing(i, sf_get(sf, right), true_sfs, false_sfs)
+      result = lval and not rval
     of rhd:
       discard f.extend_forcing(i, sf_get(sf, left), true_sfs, false_sfs)
       discard f.extend_forcing(i, sf_get(sf, right), true_sfs, false_sfs)

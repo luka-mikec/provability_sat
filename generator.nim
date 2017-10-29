@@ -8,7 +8,7 @@ import lists
 # name inspired by robert webb <3
 proc superduper*(fs : string) : bool =
   var current_max = ord('a')-1
-  let ops_syms = lc[(ft_to_chr x) | (x <- [falsum, verum, neg, box, diamond, rhd, conditional, land, lor]), char]
+  let ops_syms = lc[(ft_to_chr x) | (x <- [falsum, verum, neg, box, diamond, rhd, conditional, land, lor, notcond]), char]
   for i, c in fs:
     let cc = ord c
     if c in ops_syms:
@@ -25,7 +25,7 @@ proc superduper*(fs : string) : bool =
 iterator prefix_formulas*(length : int, ops = {falsum, verum, conditional, box, diamond}, variables : int = -1) : string =
   let op0 = {falsum, verum} * ops
   let op1 = {box, diamond, neg} * ops
-  let op2 = {rhd, conditional, land, lor} * ops
+  let op2 = {rhd, conditional, land, lor, notcond} * ops
 
   let variables = if variables == -1: if op1.card > 0: length div 2 else: 1 else: variables
   let var_syms  = lc[$char(i + ord('a'))  |  (i <- 0..variables-1), string]
