@@ -7,6 +7,11 @@ import formula
 import logic_il
 import logic_ilw
 
+include principles
+
+proc get_principles*() : type(all_principles) {.exportc.} =
+  return all_principles
+
 proc check*(sf : cstring, logic : cstring) {.exportc.} =
   let f = from_infix ($sf)
   let result : bool =

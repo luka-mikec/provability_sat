@@ -2,6 +2,7 @@ import helpers
 import tables
 import strutils
 import future
+import sequtils
 
 const max_length : int = 256
 
@@ -40,6 +41,11 @@ type
     prop_sf*  : set_of_fs
     root*     : sf_index_nt
 
+
+const arity0_operators* = {falsum, verum}
+const arity1_operators* = {box, diamond, neg}
+const arity2_operators* = {rhd, conditional, land, lor, notcond}
+const all_operators* = arity0_operators + arity1_operators + arity2_operators
 
 when sf_value_t is int32:
   proc sf_get*(sf : sf_value_t, j : subformula_item_t) : sf_index_nt =
@@ -95,44 +101,36 @@ method update_gamma*(f : var formula) : void =
     else:
       discard
 
+proc chr_to_ft*(chr : char) : formula_type =
+  case chr
+    of '#': falsum
+    of 'T': verum
+    of '>': rhd
+    of '-': conditional
+    of '&': land
+    of '|': lor
+    of '%': notcond
+    of 'B': box
+    of 'D': diamond
+    of '~': neg
+    of '(': id
+    else  : undefined
+
 proc from_prefix*(a : string, index : var int, subformulas : var Table[sf_value_t, sf_index_nt]) : sf_index_nt =
   let s = a[index]
+  let ft = chr_to_ft s
   inc index
-  let value : sf_value_t = case s
-    of 'B':
+  let value : sf_value_t = case ft
+    of arity0_operators:  # T, #
+      make_subformula sf_index_nt ft
+    of arity1_operators:  # B, D, ~
       let arg   = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_nt(box), arg)
-    of 'D':
-      let arg   = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_nt(diamond), arg)
-    of '#':
-      make_subformula sf_index_nt(falsum)
-    of 'T':
-      make_subformula sf_index_nt(verum)
-    of '>':
+      make_subformula(sf_index_nt(ft), arg)
+    of arity2_operators:  # >, &, %, |, -
       let vleft  = from_prefix(a, index, subformulas)
       let vright = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_nt(rhd), vleft, vright)
-    of '~':
-      let vleft  = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_nt(neg), vleft)
-    of '&':
-      let vleft  = from_prefix(a, index, subformulas)
-      let vright = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_nt(land), vleft, vright)
-    of '%':
-      let vleft  = from_prefix(a, index, subformulas)
-      let vright = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_nt(notcond), vleft, vright)
-    of '|':
-      let vleft  = from_prefix(a, index, subformulas)
-      let vright = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_nt(lor), vleft, vright)
-    of '-':
-      let vleft  = from_prefix(a, index, subformulas)
-      let vright = from_prefix(a, index, subformulas)
-      make_subformula(sf_index_nt(conditional), vleft, vright)
-    else:
+      make_subformula(sf_index_nt(ft), vleft, vright)
+    else: # prop variable
       sf_value_t(ord s)
   result = if value in subformulas:
       subformulas[value]
@@ -155,18 +153,18 @@ proc from_prefix*(a : string) : formula =
 
 proc `$`*(ft : formula_type) : string =
   case ft
-    of falsum:      "#"
-    of verum:       "T"
-    of rhd:         "|>"
-    of notcond:     "¬->"
-    of conditional: "->"
-    of land:        "&"
-    of lor:         "|"
-    of box:         "[]"
-    of diamond:     "<>"
-    of neg:         "¬"
-    of prop:        "?p?"
-    else:           "???"
+    of falsum:      "\u27c2"
+    of verum:       "\u22a4"
+    of rhd:         "\u22B3"
+    of notcond:     "\u219b"
+    of conditional: "\u2192"
+    of land:        "\u2227"
+    of lor:         "\u2228"
+    of box:         "\u25fb"
+    of diamond:     "\u25ca"
+    of neg:         "\uac"
+    of prop:        "\u1f001"
+    else:           "\u1f631"
 
 proc ft_to_chr*(ft : formula_type) : char =
   case ft
@@ -183,21 +181,6 @@ proc ft_to_chr*(ft : formula_type) : char =
     of prop:        '?'
     else:           '?'
 
-proc chr_to_ft*(chr : char) : formula_type =
-  case chr
-    of '#': falsum
-    of 'T': verum
-    of '>': rhd
-    of '-': conditional
-    of '&': land
-    of '|': lor
-    of '%': notcond
-    of 'B': box
-    of 'D': diamond
-    of '~': neg
-    of '(': id
-    else  : undefined
-
 
 proc sf_to_str*(f : formula, sf : sf_value_t) : string =
   let fcontent : auto = sf_get(sf, content)
@@ -205,11 +188,11 @@ proc sf_to_str*(f : formula, sf : sf_value_t) : string =
   let vl : auto = sf_get(sf, left)
   let vr : auto = sf_get(sf, right)
   result = case ft
-    of falsum, verum:               $ft
-    of rhd, conditional, land, lor, notcond: "(" & sf_to_str(f, f.ast[vl]) & ' ' & $ft & ' ' & sf_to_str(f, f.ast[vr]) & ")"
-    of neg, box, diamond:           $ft & sf_to_str(f, f.ast[vl])
-    of prop:                        $char(fcontent)
-    else:                           $ft
+    of arity0_operators: $ft
+    of arity1_operators: $ft & sf_to_str(f, f.ast[vl])
+    of arity2_operators: "(" & sf_to_str(f, f.ast[vl]) & ' ' & $ft & ' ' & sf_to_str(f, f.ast[vr]) & ")"
+    of prop:             $char(fcontent)
+    else:                $ft
 
 method `$`*(f : formula) : string =
   return sf_to_str(f, f.ast[f.root])
@@ -245,10 +228,10 @@ proc infixp(str : string, i : var int, preferunary : bool = false) : ref exprnod
       inc i
       (c, p) = toks(str, i)
       assert(c == ')')
-    of box, diamond, neg:
+    of arity1_operators:
       inc i
       result.lexpr = infixp(str, i, true)
-    of verum, falsum:
+    of arity0_operators:
       result.ftype = ft
     else:
       result.ftype = prop
@@ -260,7 +243,7 @@ proc infixp(str : string, i : var int, preferunary : bool = false) : ref exprnod
   # expr is allowed to be binary, is it?
   (c, p) = toks(str, i)
   let tn = chr_to_ft p
-  if tn notin {rhd, conditional, land, lor, notcond}:
+  if tn notin arity2_operators:
     return result
 
   # expr is binary
@@ -286,10 +269,10 @@ proc infixp(str : string, i : var int, preferunary : bool = false) : ref exprnod
       inc i
       (c, p) = toks(str, i)
       assert(c == ')')
-    of box, diamond, neg:
+    of arity1_operators:
       inc i
       result.rexpr.lexpr = infixp(str, i, true)
-    of verum, falsum:
+    of arity0_operators:
       result.rexpr.ftype = ft
     else:
       result.rexpr.ftype = prop
@@ -304,11 +287,11 @@ proc exprnode_to_prefix(e : ref exprnode) : string =
   case e.ftype
     of prop:
       $e.data
-    of verum, falsum:
+    of arity0_operators:
       $ft_to_chr(e.ftype)
-    of box, diamond, neg:
+    of arity1_operators:
       ft_to_chr(e.ftype) & exprnode_to_prefix(e.lexpr)
-    of rhd, conditional, land, lor, notcond:
+    of arity2_operators:
       ft_to_chr(e.ftype) & exprnode_to_prefix(e.lexpr) & exprnode_to_prefix(e.rexpr)
     of id:
       exprnode_to_prefix(e.lexpr)
@@ -317,7 +300,9 @@ proc exprnode_to_prefix(e : ref exprnode) : string =
 
 proc from_infix*(str : string) : formula =
   from_prefix exprnode_to_prefix infixp multi_replace(str, ("->", "-"), ("&&", "&"), ("\\/", "|"), ("||", "|"), ("/\\", "&"),
-                                 ("_|_", "#"), ("[]", "B"), ("<>", "D"), ("¬", "~"), ("|>", ">"), ("*", "&"), ("+", "|"))
+                                 ("_|_", "#"), ("[]", "B"), ("<>", "D"), ("¬", "~"), ("|>", ">"), ("*", "&"), ("+", "|"),
+                                 ("\u27c2", "#"), ("\u22a4", "T"), ("\u22B3", ">"), ("\u219b", "%"), ("\u2192", "-"),
+                                 ("\u2227", "&"), ("\u2228", "|"), ("\u25fb", "B"), ("\u25ca", "D"), ("\uac", "~") )
 
 
 method extend_forcing*(f : formula, i : interpretation_impl_type, sf_ind : sf_index_nt, true_sfs : var set_of_fs, false_sfs : var set_of_fs) : bool =
@@ -361,3 +346,4 @@ method extend_forcing*(f : formula, i : interpretation_impl_type) : set_of_fs =
   # result = {}
   var false_sfs : set_of_fs # = {}
   discard f.extend_forcing(i, f.root, result, false_sfs)
+
