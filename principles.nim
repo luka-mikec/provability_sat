@@ -16,7 +16,7 @@ const # extensions
   p  = "(p ⊳ q) → ◻(p ⊳ q)"
   f  = "(p ⊳ ◊p) → ◻¬p"
   w  = "(p ⊳ q) → (p ⊳ (q ∧ ◻¬p))"
-  wx = "(p ⊳ q) → ((p ∧ ◻s) ⊳ ((q ∧ ◻¬p) ∧ ◻s))"
+  wx = "(p ⊳ q) → ((q ∧ ◻s) ⊳ ((q ∧ ◻¬p) ∧ ◻s))"
   p0 = "(p ⊳ ◊q) → ◻(p ⊳ q)"
   r  = "(p ⊳ q) → (¬(p ⊳ ¬c) ⊳ (q ∧ ◻c))"
   r1 = "(p ⊳ q) → ((¬(p ⊳ ¬c) ∧ (x ⊳ ◊y)) ⊳ ((q ∧ ◻c) ∧ (x ⊳ y)))"

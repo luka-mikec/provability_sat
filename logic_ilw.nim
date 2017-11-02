@@ -89,7 +89,7 @@ proc sattreeilw*(f : formula,
     #if lev == 0 and (byte2 notin K or byte5 in K or byte9 in K or byte7 in K):
     #  continue
 
-    let truths = f.extend_forcing(K)
+    let truths = f.extend_forcing(K * gamma0)
     #echo repeat("  ", lev), K, varK, " out of ", vargamma0
     let goal_satisfied = goal.is_none or goal.get in truths
     let neg_goal_avoided = neg_goal.is_none or neg_goal.get notin truths

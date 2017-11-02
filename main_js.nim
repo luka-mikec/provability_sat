@@ -6,6 +6,7 @@ import formula
 
 import logic_il
 import logic_ilw
+import logic_ilp
 
 include principles
 
@@ -19,6 +20,8 @@ proc check*(sf : cstring, logic : cstring) {.exportc.} =
       sattreeil  f
     elif $logic == "ilw":
       sattreeilw f
+    elif $logic == "ilp":
+      sattreeilp f
     else:
       (alert("not implemented!"); false)
   alert(window, cstring ($f & $ (if result: " is satisfiable." else: " is not satisfiable.")  ))
