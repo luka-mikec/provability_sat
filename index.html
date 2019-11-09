@@ -34,7 +34,7 @@
 <body>
   <div style="margin-left: auto; margin-right: auto; width: 400px; height: 400px; margin-top: 100px; padding: 20px; padding-right: 10px; text-align:center; background-color: ghostwhite; border: 1px solid lightgray; font-size: 14; ">
   <form>
-    <input type="text" list="selectables" size="22" id="formula" style="font-size: 16;" autocomplete="off" value=""></input>
+    <input type="text" list="selectables" size="22" id="formula" style="font-size: 16;" autocomplete="off" value="¬((p ⊳ q) → ◻(p ⊳ q))"></input>
     <datalist id="selectables">
       
     </datalist> 
@@ -44,6 +44,7 @@
       <option value="il">IL (or GL)</option>  
       <option value="ilw">ILW</option>
       <option value="ilp">ILP</option>
+      <option value="ilm" selected>ILM</option>
     </select>
     <br />
     <br />
@@ -106,10 +107,10 @@
   var selectables = document.getElementById("selectables");
   for (var i = 0; i < strs.length; ++i)
   {
-    var uintArray = strs[i];
-    var decodedString = decodeURIComponent(escape(String.fromCharCode.apply(null, uintArray.splice(0, uintArray.length-1))));
+    //var uintArray = strs[i];
+    //var decodedString = decodeURIComponent(escape(String.fromCharCode.apply(null, uintArray.splice(0, uintArray.length-1))));
     var option = document.createElement('option');
-    option.value = "¬(" + decodedString + ")";
+    option.value = "¬(" + strs[i] + ")";
     selectables.appendChild(option);
   }
   var inp = document.getElementById("formula");
