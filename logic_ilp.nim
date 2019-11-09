@@ -11,10 +11,10 @@ import strutils
 proc sattreeilp*(f : formula,
                goal : Option[sf_index_t],
                neg_goal : Option[sf_index_t],
-               persistent_bans : set_of_fs,
-               persistent_truths : set_of_fs,
-               temp_bans : set_of_fs,
-               #ancestry : set_of_fs,  # nije potrebno jer tu imamo pers truths
+               persistent_bans : set_of_sfs,
+               persistent_truths : set_of_sfs,
+               temp_bans : set_of_sfs,
+               #ancestry : set_of_sfs,  # nije potrebno jer tu imamo pers truths
                lev : int = 0) : bool =
   let gamma0 = f.boxed_sf + f.rhd_sf + f.prop_sf
   #echo repeat("  ", lev), gamma0, " @ ", (if goal.is_some: goal.get else: neg_goal.get), persistent_truths, persistent_bans
@@ -74,7 +74,7 @@ proc sattreeilp*(f : formula,
     if not found_ok_I_for_boxes:
       continue
     #var created_I_witnesses : set[uint16]  # successful (D, E>G) pairs, neće raditi jer ovisi o drugima EG
-    var N_rhd_by_rhs = init_table[sf_index_t, set_of_fs]()
+    var N_rhd_by_rhs = init_table[sf_index_t, set_of_sfs]()
     var Ds : set[sf_index_t]
     for CrhdD in N_rhd:
       let

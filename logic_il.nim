@@ -10,8 +10,8 @@ import strutils
 proc sattreeil*(f : formula,
                goal : Option[sf_index_t],
                neg_goal : Option[sf_index_t],
-               persistent_bans : set_of_fs,
-               persistent_truths : set_of_fs,
+               persistent_bans : set_of_sfs,
+               persistent_truths : set_of_sfs,
                lev : int = 0) : bool =
   let gamma0 = f.boxed_sf + f.rhd_sf + f.prop_sf
   #echo repeat("  ", lev), gamma0, " @ ", (if goal.is_some: goal.get else: neg_goal.get), persistent_truths, persistent_bans
@@ -70,7 +70,7 @@ proc sattreeil*(f : formula,
     if not found_ok_I_for_boxes:
       continue
     #var created_I_witnesses : set[uint16]  # successful (D, E>G) pairs, neće raditi jer ovisi o drugima EG
-    var N_rhd_by_rhs = init_table[sf_index_t, set_of_fs]()
+    var N_rhd_by_rhs = init_table[sf_index_t, set_of_sfs]()
     var Ds : set[sf_index_t]
     for CrhdD in N_rhd:
       let

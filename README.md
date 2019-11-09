@@ -1,14 +1,14 @@
 # provability_sat
 Satisfiability verifiers for certain modal logics concerned with provability.
 
-Use Nim (https://nim-lang.org/) to compile.*
+[Live version](https://luka.doublebuffer.net/o/il)
 
-At the moment this contains: 
- * a reimplementation of https://github.com/luka-mikec/godellob-prover;
- * a version of the algorithm from https://arxiv.org/abs/1710.05599;
- * a version of the algorithm from the future paper concerning the logic ILW.
+Use [Nim](https://nim-lang.org/) to compile. Currently requires devel branch of Nim (1.0.3+).
 
-Upcoming:
- * a version of the algorithm from the future paper concerning the logic ILP.
+At the moment this contains satisfiability verifiers for the following logics: 
+ * provability logic (GL) (similar to [trees](https://github.com/luka-mikec/godellob-prover));
+ * basic interpretability logic (IL) (see https://arxiv.org/abs/1710.05599);
+ * interpretability logic ILW;
+ * interpretability logic ILP;
+ * interpretability logic ILM.
 
-(*) because it is statically typed, compiled, imperative and has clean indentation based syntax. 
